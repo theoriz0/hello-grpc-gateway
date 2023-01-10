@@ -2,7 +2,7 @@
 
 Build according to: [gRPC-Gateway: Tutorial](https://grpc-ecosystem.github.io/grpc-gateway/docs/tutorials/introduction/)
 
-Swagger support added by running:
+Generate and serve swagger.json by running:
 ```bash
 go intall github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
 protoc -I ./proto --swagger_out=logtostderr=true:. ./proto/helloworld/hello_world.proto
