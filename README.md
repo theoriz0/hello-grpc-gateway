@@ -1,6 +1,6 @@
 # Hello-grpc-gateway
 
-Build according to: [gRPC-Gateway: Tutorial](https://grpc-ecosystem.github.io/grpc-gateway/docs/tutorials/introduction/)
+Built according to: [gRPC-Gateway: Tutorial](https://grpc-ecosystem.github.io/grpc-gateway/docs/tutorials/introduction/)
 
 ## Generate and serve swagger.json
 
