@@ -1,1 +1,4 @@
-helloworld/
+proto/helloworld/*.go
+*.swagger.json
+certs/*.pem
+certs/*.key
