@@ -13,7 +13,7 @@ func main() {
 	if err != nil {
 		log.Println("Failed to create TLS credentials %v", err)
 	}
-	conn, err := grpc.Dial(":8080", grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial(":8090", grpc.WithTransportCredentials(creds))
 	defer conn.Close()
 
 	if err != nil {

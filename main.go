@@ -18,6 +18,7 @@ import (
 var (
 	CertPemPath = "certs/server.pem"
 	CertKeyPath = "certs/server.key"
+	Addr        = ":8090"
 )
 
 type helloService struct {
@@ -30,7 +31,7 @@ func (s helloService) SayHello(ctx context.Context, in *helloworldpb.HelloReques
 
 func main() {
 	// Create a listener on TCP port
-	lis, err := net.Listen("tcp", ":8080")
+	lis, err := net.Listen("tcp", Addr)
 	if err != nil {
 		log.Fatalln("Failed to listen:", err)
 	}
@@ -68,7 +69,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", gwmux)
 	server := &http.Server{
-		Addr:      ":8090",
+		Addr:      Addr,
 		Handler:   util.GrpcHandlerFunc(grpcServer, mux),
 		TLSConfig: tlsConfig,
 	}
