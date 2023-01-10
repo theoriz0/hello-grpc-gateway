@@ -1,1 +1,3 @@
 helloworld/
+certs/*.pem
+certs/*.key

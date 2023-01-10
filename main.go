@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/theoriz0/hello-grpcgw/pkg/util"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"net"
 	"net/http"
@@ -13,15 +15,16 @@ import (
 	helloworldpb "github.com/theoriz0/hello-grpcgw/proto/helloworld"
 )
 
-type server struct {
+var (
+	CertPemPath = "certs/server.pem"
+	CertKeyPath = "certs/server.key"
+)
+
+type helloService struct {
 	helloworldpb.UnimplementedGreeterServer
 }
 
-func NewServer() *server {
-	return &server{}
-}
-
-func (s *server) SayHello(ctx context.Context, in *helloworldpb.HelloRequest) (*helloworldpb.HelloReply, error) {
+func (s helloService) SayHello(ctx context.Context, in *helloworldpb.HelloRequest) (*helloworldpb.HelloReply, error) {
 	return &helloworldpb.HelloReply{Message: in.Name + " world"}, nil
 }
 
@@ -32,40 +35,43 @@ func main() {
 		log.Fatalln("Failed to listen:", err)
 	}
 
+	// Create TLS config
+	tlsConfig := util.GetTLSConfig(CertPemPath, CertKeyPath)
+	var opts []grpc.ServerOption
+
 	// Create a gRPC server object
-	s := grpc.NewServer()
-	// Attach the Greeter service to the server
-	helloworldpb.RegisterGreeterServer(s, &server{})
-	// Serve gRPC Server
-	log.Println("Serving gRPC on 0.0.0.0:8080")
-	go func() {
-		log.Fatalln(s.Serve(lis))
-	}()
-
-	// Create a client connection to the gRPC server we just started
-	// This is where the gRPC-Gateway proxies the requests
-	conn, err := grpc.DialContext(
-		context.Background(),
-		"0.0.0.0:8080",
-		grpc.WithBlock(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	creds, err := credentials.NewServerTLSFromFile(CertPemPath, CertKeyPath)
 	if err != nil {
-		log.Fatalln("Failed to dial server:", err)
+		log.Printf("Failed to create server TLS credentials %v", err)
 	}
+	opts = append(opts, grpc.Creds(creds))
+	grpcServer := grpc.NewServer(opts...)
 
+	// Attach the Greeter service to the server
+	helloworldpb.RegisterGreeterServer(grpcServer, &helloService{})
+
+	//gw server
+	dcreds, err := credentials.NewClientTLSFromFile(CertPemPath, "dev.io")
+	if err != nil {
+		log.Printf("Failed to create client TLS credentials %v", err)
+	}
+	dopts := []grpc.DialOption{grpc.WithTransportCredentials(dcreds)}
 	gwmux := runtime.NewServeMux()
+
 	// Register Greeter
-	err = helloworldpb.RegisterGreeterHandler(context.Background(), gwmux, conn)
+	err = helloworldpb.RegisterGreeterHandlerFromEndpoint(context.Background(), gwmux, ":8080", dopts)
 	if err != nil {
 		log.Fatalln("Failed to register gateway:", err)
 	}
 
-	gwServer := &http.Server{
-		Addr:    ":8090",
-		Handler: gwmux,
+	// Serve gateway
+	mux := http.NewServeMux()
+	mux.Handle("/", gwmux)
+	server := &http.Server{
+		Addr:      ":8090",
+		Handler:   util.GrpcHandlerFunc(grpcServer, mux),
+		TLSConfig: tlsConfig,
 	}
 
-	log.Println("Serving gRPC-Gateway on http://0.0.0.0:8090")
-	log.Fatalln(gwServer.ListenAndServe())
+	server.Serve(tls.NewListener(lis, tlsConfig))
 }
